@@ -5,4 +5,4 @@ A WIP plugin for Obsidian that will
 3. run the file in the terminal with the appropriate command and
 4. delete the file.
 
-It currently works on MacOS for a highlighted Python codeblock, though the file must be deleted by a separate command.
+It currently works on MacOS for Python, Java, and C++, though the autodelete isn't full working (the last temp file file before a restart of Obsidian isn't deleted).
