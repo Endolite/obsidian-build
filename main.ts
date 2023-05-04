@@ -1,23 +1,22 @@
-import { MarkdownView, Plugin, TAbstractFile, Editor } from "obsidian";
+import { Plugin, TAbstractFile, Editor } from "obsidian";
 import { detectNewline } from "detect-newline";
 
 let extDict = new Map<string, string>(); // Map of file extensions
-extDict.set("cpp", "cpp");
-extDict.set("java", "java");
-extDict.set("python", "py");
+	extDict.set("cpp", "cpp");
+	extDict.set("java", "java");
+	extDict.set("python", "py");
 
 let cmdDict = new Map<string, string>(); // Map of terminal commands
-cmdDict.set("cpp", "make")
-cmdDict.set("java", "java");
-cmdDict.set("python", "python3");
-
+	cmdDict.set("cpp", "make")
+	cmdDict.set("java", "java");
+	cmdDict.set("python", "python3");
 
 let oneFile = new Map<string, boolean>(); // Map of whether a build file is required
-oneFile.set("cpp", false);
-oneFile.set("java", true);
-oneFile.set("python", true);
+	oneFile.set("cpp", false);
+	oneFile.set("java", true);
+	oneFile.set("python", true);
 
-export default class ExamplePlugin extends Plugin {
+export default class Build extends Plugin {
 	ext = ""; // File extension
 	cmd = ""; // Terminal command
 	oneF = false;
@@ -68,7 +67,7 @@ export default class ExamplePlugin extends Plugin {
 			} 
 		}),
 
-		this.addCommand({ // Deletes the temp file
+		this.addCommand({ // Deletes all possible temp files
 			id: "clear",
 			name: "Clear",
 			callback: () => {
@@ -82,7 +81,7 @@ export default class ExamplePlugin extends Plugin {
 				}
 			}
 		})
-		this.addCommand({ // Open a new terminal instance
+		this.addCommand({ // Opens a new terminal instance
 			id: "open-terminal",
 			name: "Open terminal",
 			callback: () =>{
@@ -116,6 +115,7 @@ export default class ExamplePlugin extends Plugin {
 
 	async openTerminal() { // Opens a new terminal instance and runs the temp file
 		const { exec } = require("child_process");
+		
 		let path = this.app.vault.adapter.getResourcePath("temp" + this.ext);
 		//console.log("Original path: " + path);
 		let n = path.length - 1;
@@ -124,12 +124,17 @@ export default class ExamplePlugin extends Plugin {
 		}
 		path = path.substring(24, n + 1) + "temp"
 		//console.log("Usable path:" + path);
+		let fullCMD = "osascript -e \'tell app \"Terminal\" to do script \"" + this.cmd + " " + path;
+		//let fullCMD = "open -a Terminal && " + this.cmd + " " + path;
 		if (this.oneF) {
-			exec("osascript -e \'tell app \"Terminal\" to do script \"" + this.cmd + " " + path + "." + this.ext + "\"\'");
+			fullCMD += "." + this.ext + "\"\'";
 		}
 		else {
-			exec("osascript -e \'tell app \"Terminal\" to do script \"" + this.cmd + " " + path + " && " + path  + "\"\'");
+			fullCMD += " && " + path  + "\"\'";
 		}
+		// TODO bring created terminal window to the front
+		// fullCMD += "\'";
+		exec(fullCMD);
 	}
 
 }
