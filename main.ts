@@ -1,5 +1,6 @@
 import { App, Plugin, TAbstractFile, Editor, PluginSettingTab, Setting, MarkdownView } from "obsidian";
 
+//TODO Combine maps into one Map<string, string[]>
 let extDict = new Map<string, string>(); // Map of file extensions
 	extDict.set("cpp", "cpp");
 	extDict.set("java", "java");
@@ -152,13 +153,14 @@ export default class Build extends Plugin {
 			else {
 				fullCMD += " && " + path  + "\"\'";
 			}
-			// TODO bring created terminal window to the front
-			// fullCMD += "\'";
+			fullCMD += "; osascript -e \'tell app \"Terminal\" to activate\'";
+			//console.log(fullCMD);
 			exec(fullCMD);
 		}
 		else {
 			console.log("MacOS is the only supported operating system as of now.");
 		}
+		
 		setTimeout(() => {this.deleteFile()}, parseInt(this.settings.timeout));
 	}
 
@@ -192,6 +194,7 @@ export default class Build extends Plugin {
 				language = language.substring(9, language.indexOf("\ "));
 			}
 			//console.log(language)
+
 			let temp = extDict.get(language);
 			if (typeof(temp) == "string") {
 				this.ext = temp;
@@ -207,8 +210,8 @@ export default class Build extends Plugin {
 			if (code.substring(code.length - 3) == "Run") {
 				code = code.substring(0, code.length - 3);
 			}
-
 			//console.log(code);
+
 			this.makeFile(code);
 			await this.openTerminal();
 		});

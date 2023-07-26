@@ -1,11 +1,10 @@
 {
 	"id": "obsidian-build",
 	"name": "Build",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "This plugin converts a code block into a dummy file of the specified language, runs said file in the terminal with the specified commands, and deletes said file.",
 	"author": "Arnav Patri",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"authorUrl": "https://github.com/Endolite",
 	"isDesktopOnly": true
 }
