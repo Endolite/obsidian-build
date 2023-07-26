@@ -1,4 +1,6 @@
+// Temp.ts
 import { App, Plugin, TAbstractFile, Editor, PluginSettingTab, Setting, MarkdownView } from "obsidian";
+import { detectNewline } from "detect-newline";
 
 let extDict = new Map<string, string>(); // Map of file extensions
 	extDict.set("cpp", "cpp");
@@ -19,13 +21,11 @@ let oneFile = new Map<string, boolean>(); // Map of whether the temp file can be
 	oneFile.set("python", true);
 
 interface pluginSettings {
-	timeout: string
-	loadTime: string
+	terminal: string;
 }
 
 const DEFAULT_SETTINGS: Partial<pluginSettings> = {
-	timeout: "10000",
-	loadTime: "1000"
+	terminal: "Terminal",
 }
 
 export default class Build extends Plugin {
@@ -36,11 +36,65 @@ export default class Build extends Plugin {
 	oneF = false; // Whether the temp file can be directly run
 	
   async onload() {
+
 		await this.loadSettings();
+		await this.iterateFiles();
 		await this.clear();
-		setTimeout(() => {this.iterateFiles()}, parseInt(this.settings.loadTime));
-		
-		
+
+		this.addCommand({
+			id: "iterate",
+			name: "Iterate",
+			editorCallback: (editor: Editor) => {
+				this.iterateFiles();
+			}
+		});
+
+		this.addCommand({
+			id: "build",
+			name: "Build",
+			editorCallback: (editor: Editor) => {
+				//this.deleteFile(); // Clears the previous temp file before the new extension is identified
+				let sel = editor.getSelection(); // Makes a string from the user's mouse selection
+
+				if (sel.substring(0, 3) === "```" && sel.substring(sel.length - 3) === "```") { // Makes sure a valid selection is made
+					let n = 0;
+					while (detectNewline(sel.substring(n, n + 1)) != '\n') { // Finds the specified language by going back from the first newline character
+						n++;
+					} 
+					let lang = sel.substring(3, n);
+					//console.log("Language: " + lang);
+					let temp = extDict.get(lang);
+					if (typeof temp === "string") {
+						this.ext = temp;
+						//console.log("Extension: " + this.ext);
+					}
+					temp = cmdDict.get(lang);
+					if (typeof temp === "string") {
+						this.cmd = temp;
+						//console.log("Command: " + this.cmd);
+					}
+					let tempB = oneFile.get(lang);
+					if (typeof tempB === "boolean") {
+						this.oneF = tempB;
+						//console.log("One file: " + this.oneF);
+					}
+
+					sel = sel.substring(n + 1, sel.length - 4); // Truncates the delimiters of the code block
+					try {
+						this.makeFile(sel); // Creates a file for the selection
+						this.openTerminal();
+					} 
+					catch (error) {
+						console.log(error);
+					}
+				} 
+				else {
+					console.log("Invalid selection");
+				}
+				this.deleteFile();
+			} 
+		});
+
 		this.addCommand({ // Deletes all possible temp files
 			id: "clear",
 			name: "Clear",
@@ -48,13 +102,12 @@ export default class Build extends Plugin {
 				this.clear();
 			}
 		});
-		
-		this.addCommand({ // Reiterates if anything is missed
-			id: "reiterate",
-			name: "Reiterate",
+
+		this.addCommand({ // Opens a new terminal instance
+			id: "open-terminal",
+			name: "Open terminal",
 			callback: () => {
-				this.removeRunButtons();
-				this.iterateFiles();
+				this.openTerminal();
 			}
 		});
 
@@ -102,8 +155,6 @@ export default class Build extends Plugin {
 	async clear() { // Deletes all possible temp files
 		let tempExt;
 		let tempF;
-		let originalExt = this.ext;
-		let originalTempF = this.oneF;
 		for (let key of Array.from(extDict.keys())) {
 			tempExt = extDict.get(key);
 			tempF = oneFile.get(key);
@@ -118,8 +169,7 @@ export default class Build extends Plugin {
 				}
 			}
 		}
-		this.ext = originalExt;
-		this.oneF = originalTempF;
+		console.log("Cleared")
 	}
 
 	async openTerminal() { // Opens a new terminal instance and runs the temp file
@@ -159,13 +209,12 @@ export default class Build extends Plugin {
 		else {
 			console.log("MacOS is the only supported operating system as of now.");
 		}
-		setTimeout(() => {this.deleteFile()}, parseInt(this.settings.timeout));
 	}
 
 	private addRunButton(element: HTMLElement, text: string) { // Adds run buttons for all code blocks in the file
 		Array.from(element.getElementsByTagName("code")).forEach((codeBlock: HTMLElement) => {
-			codeBlock.createEl("button", {text: text, cls: "run-button", attr: {type: "button"}}); //TODO CSS
-			//console.log(text);
+			codeBlock.createEl("button", {text: text, cls: "run-button", attr: {type: "button"}});
+			console.log(text);
 			const code = codeBlock.getText();
 			const language = codeBlock.className;
 			this.addListenerToRunButton(codeBlock, code, language);
@@ -191,26 +240,20 @@ export default class Build extends Plugin {
 			else if (language.substring(0, 9) == "language-") {
 				language = language.substring(9, language.indexOf("\ "));
 			}
-			//console.log(language)
 			let temp = extDict.get(language);
-			if (typeof(temp) == "string") {
-				this.ext = temp;
-			}
+			sameTypeDef(this.ext, temp);
 			temp = cmdDict.get(language);
-			if (typeof(temp) == "string") {
-				this.cmd = temp;
-			}
+			sameTypeDef(this.cmd, temp);
 			let tempB = oneFile.get(language);
-			if (typeof(tempB) == "boolean") {
-				this.oneF = tempB;
-			}
+			sameTypeDef(this.oneF, tempB);
 			if (code.substring(code.length - 3) == "Run") {
 				code = code.substring(0, code.length - 3);
 			}
 
-			//console.log(code);
+			console.log(code);
 			this.makeFile(code);
 			await this.openTerminal();
+			//await this.deleteFile();
 		});
 	}
 
@@ -242,24 +285,20 @@ class BuildSettingsTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.createEl("h2", {text: "Build Settings"});
 		new Setting(containerEl)
-			.setName("Timeout")
-			.setDesc("How long to wait after running to delete the temp file")
+			.setName("Terminal")
+			.setDesc("The terminal to use when running the temp file")
 			.addText(text => text
-				.setPlaceholder("10000")
-				.setValue(this.plugin.settings.timeout)
+				.setPlaceholder("Terminal")
+				.setValue(this.plugin.settings.terminal)
 				.onChange(async (value) => {
-					this.plugin.settings.timeout = value || "10000";
+					this.plugin.settings.terminal = value;
 					await this.plugin.saveSettings();
 				}));
-		new Setting(containerEl)
-			.setName("Load Time")
-			.setDesc("How long to wait after loading a file to add run buttons")
-			.addText(text => text
-				.setPlaceholder("1000")
-				.setValue(this.plugin.settings.loadTime)
-				.onChange(async (value) => {
-					this.plugin.settings.loadTime = value || "1000";
-					await this.plugin.saveSettings();
-				}));
+	}
+}
+
+function sameTypeDef<Type>(A: Type, B: Type) {
+	if (typeof(A) == typeof(B)) {
+		A = B;
 	}
 }
